@@ -14,10 +14,13 @@ import (
 	"encoding/asn1"
 	"encoding/binary"
 	"encoding/hex"
+	"log"
 	"math/big"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/open-quantum-safe/liboqs-go/oqs"
 )
 
 // DNSSEC encryption algorithm codes.
@@ -42,6 +45,8 @@ const (
 	INDIRECT   uint8 = 252
 	PRIVATEDNS uint8 = 253 // Private (experimental keys)
 	PRIVATEOID uint8 = 254
+	//OQS
+	DILITHIUM2 uint8 = 18
 )
 
 // AlgorithmToString is a map of algorithm IDs to algorithm names.
@@ -62,6 +67,7 @@ var AlgorithmToString = map[uint8]string{
 	INDIRECT:         "INDIRECT",
 	PRIVATEDNS:       "PRIVATEDNS",
 	PRIVATEOID:       "PRIVATEOID",
+	DILITHIUM2:       "DILITHIUM2",
 }
 
 // AlgorithmToHash is a map of algorithm crypto hash IDs to crypto.Hash's.
@@ -295,16 +301,18 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 		return err
 	}
 
-	h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
-	if err != nil {
-		return err
-	}
-
 	switch rr.Algorithm {
 	case RSAMD5, DSA, DSANSEC3SHA1:
 		// See RFC 6944.
 		return ErrAlg
+	case DILITHIUM2:
+		return signWithDilithium(rr, k, signdata, wire)
 	default:
+		h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
+		if err != nil {
+			return err
+		}
+
 		h.Write(signdata)
 		h.Write(wire)
 
@@ -316,6 +324,26 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 		rr.Signature = toBase64(signature)
 		return nil
 	}
+}
+func signWithDilithium(rr *RRSIG, k crypto.Signer, signdata, wire []byte) error {
+	signer := oqs.Signature{}
+	defer signer.Clean()
+
+	if err := signer.Init("Dilithium2", nil); err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	// Firmar el mensaje usando la clave k proporcionada
+	message := append(signdata, wire...)
+	signature, err := k.Sign(nil, message, nil)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	rr.Signature = toBase64(signature)
+	return nil
 }
 
 func sign(k crypto.Signer, hashed []byte, hash crypto.Hash, alg uint8) ([]byte, error) {
