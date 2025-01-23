@@ -14,6 +14,8 @@ import (
 	"encoding/asn1"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
+	"io"
 	"log"
 	"math/big"
 	"sort"
@@ -325,20 +327,71 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 		return nil
 	}
 }
-func signWithDilithium(rr *RRSIG, k crypto.Signer, signdata, wire []byte) error {
-	signer := oqs.Signature{}
-	defer signer.Clean()
 
-	if err := signer.Init("Dilithium2", nil); err != nil {
-		log.Fatal(err)
-		return err
+type DilithiumSigner struct {
+	signature oqs.Signature
+	publicKey []byte
+}
+
+// Función que devuelve la clave pública asociada.
+func (ds *DilithiumSigner) Public() crypto.PublicKey {
+	if ds.publicKey == nil {
+		log.Fatal("Public key has not been initialized")
+	}
+	return ds.publicKey
+}
+
+// Firma de los datos utilizando oqs.Signature.
+func (ds *DilithiumSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	// Firmar el mensaje (digest) con la clave privada interna de oqs.Signature
+	signature, err := ds.signature.Sign(digest)
+	if err != nil {
+		return nil, err
+	}
+	return signature, nil
+}
+
+func NewDilithiumSigner() (*DilithiumSigner, error) {
+	sig := oqs.Signature{}
+	if err := sig.Init("Dilithium2", nil); err != nil {
+		return nil, err
 	}
 
-	// Firmar el mensaje usando la clave k proporcionada
-	message := append(signdata, wire...)
-	signature, err := k.Sign(nil, message, nil)
+	// Generar el par de claves
+	publicKey, err := sig.GenerateKeyPair()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
+	}
+
+	return &DilithiumSigner{
+		signature: sig,
+		publicKey: publicKey,
+	}, nil
+}
+
+func signWithDilithium(rr *RRSIG, k crypto.Signer, signdata, wire []byte) error {
+	var ds *DilithiumSigner
+	var ok bool
+
+	// Verificar si k es de tipo DilithiumSigner
+	if k != nil {
+		ds, ok = k.(*DilithiumSigner)
+	}
+	// Si no es válido, crear un nuevo DilithiumSigner
+	if !ok {
+		var err error
+		ds, err = NewDilithiumSigner()
+		if err != nil {
+			return fmt.Errorf("failed to initialize DilithiumSigner: %w", err)
+		}
+	}
+
+	// Concatenar signdata y wire para formar el mensaje completo
+	message := append(signdata, wire...)
+
+	// Firmar el mensaje usando DilithiumSigner
+	signature, err := ds.Sign(nil, message, nil)
+	if err != nil {
 		return err
 	}
 
