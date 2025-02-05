@@ -14,8 +14,6 @@ import (
 	"encoding/asn1"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
-	"io"
 	"log"
 	"math/big"
 	"sort"
@@ -303,18 +301,16 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 		return err
 	}
 
+	h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
+	if err != nil {
+		return err
+	}
+
 	switch rr.Algorithm {
 	case RSAMD5, DSA, DSANSEC3SHA1:
 		// See RFC 6944.
 		return ErrAlg
-	case DILITHIUM2:
-		return signWithDilithium(rr, k, signdata, wire)
 	default:
-		h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
-		if err != nil {
-			return err
-		}
-
 		h.Write(signdata)
 		h.Write(wire)
 
@@ -328,75 +324,89 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 	}
 }
 
-type DilithiumSigner struct {
-	signature oqs.Signature
-	publicKey []byte
-}
-
-// Función que devuelve la clave pública asociada.
-func (ds *DilithiumSigner) Public() crypto.PublicKey {
-	if ds.publicKey == nil {
-		log.Fatal("Public key has not been initialized")
+func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error {
+	if k == nil {
+		return ErrPrivKey
 	}
-	return ds.publicKey
-}
+	// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
+	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
+		return ErrKey
+	}
 
-// Firma de los datos utilizando oqs.Signature.
-func (ds *DilithiumSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
-	// Firmar el mensaje (digest) con la clave privada interna de oqs.Signature
-	signature, err := ds.signature.Sign(digest)
+	h0 := rrset[0].Header()
+	rr.Hdr.Rrtype = TypeRRSIG
+	rr.Hdr.Name = h0.Name
+	rr.Hdr.Class = h0.Class
+	if rr.OrigTtl == 0 { // If set don't override
+		rr.OrigTtl = h0.Ttl
+	}
+	rr.TypeCovered = h0.Rrtype
+	rr.Labels = uint8(CountLabel(h0.Name))
+
+	if strings.HasPrefix(h0.Name, "*") {
+		rr.Labels-- // wildcard, remove from label count
+	}
+
+	sigwire := new(rrsigWireFmt)
+	sigwire.TypeCovered = rr.TypeCovered
+	sigwire.Algorithm = rr.Algorithm
+	sigwire.Labels = rr.Labels
+	sigwire.OrigTtl = rr.OrigTtl
+	sigwire.Expiration = rr.Expiration
+	sigwire.Inception = rr.Inception
+	sigwire.KeyTag = rr.KeyTag
+	// For signing, lowercase this name
+	sigwire.SignerName = CanonicalName(rr.SignerName)
+
+	// Create the desired binary blob
+	signdata := make([]byte, DefaultMsgSize)
+	n, err := packSigWire(sigwire, signdata)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return signature, nil
-}
-
-func NewDilithiumSigner() (*DilithiumSigner, error) {
-	sig := oqs.Signature{}
-	if err := sig.Init("Dilithium2", nil); err != nil {
-		return nil, err
-	}
-
-	// Generar el par de claves
-	publicKey, err := sig.GenerateKeyPair()
-	if err != nil {
-		return nil, err
-	}
-
-	return &DilithiumSigner{
-		signature: sig,
-		publicKey: publicKey,
-	}, nil
-}
-
-func signWithDilithium(rr *RRSIG, k crypto.Signer, signdata, wire []byte) error {
-	var ds *DilithiumSigner
-	var ok bool
-
-	// Verificar si k es de tipo DilithiumSigner
-	if k != nil {
-		ds, ok = k.(*DilithiumSigner)
-	}
-	// Si no es válido, crear un nuevo DilithiumSigner
-	if !ok {
-		var err error
-		ds, err = NewDilithiumSigner()
-		if err != nil {
-			return fmt.Errorf("failed to initialize DilithiumSigner: %w", err)
-		}
-	}
-
-	// Concatenar signdata y wire para formar el mensaje completo
-	message := append(signdata, wire...)
-
-	// Firmar el mensaje usando DilithiumSigner
-	signature, err := ds.Sign(nil, message, nil)
+	signdata = signdata[:n]
+	wire, err := rawSignatureData(rrset, rr)
 	if err != nil {
 		return err
 	}
 
-	rr.Signature = toBase64(signature)
-	return nil
+	switch rr.Algorithm {
+	case RSAMD5, DSA, DSANSEC3SHA1:
+		// See RFC 6944.
+		return ErrAlg
+	case DILITHIUM2:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("Dilithium2", privkey); err != nil {
+			log.Fatal(err)
+			return err
+		}
+		// Firmar el mensaje usando la clave k proporcionada
+		message := append(signdata, wire...)
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Fatal(err)
+			return err
+		}
+		rr.Signature = toBase64(signature)
+		return nil
+
+	default:
+		h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
+		if err != nil {
+			return err
+		}
+		h.Write(signdata)
+		h.Write(wire)
+
+		signature, err := sign(k, h.Sum(nil), cryptohash, rr.Algorithm)
+		if err != nil {
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+		return nil
+	}
 }
 
 func sign(k crypto.Signer, hashed []byte, hash crypto.Hash, alg uint8) ([]byte, error) {

@@ -90,7 +90,7 @@ func TestDilithium(t *testing.T) {
 	}
 
 	// Firmar el registro RRSIG utilizando el firmante
-	err = sig.Sign(oqsSigner, []RR{srv})
+	err = sig.SignWithPQC(oqsSigner, []RR{srv}, secretKey)
 	if err != nil {
 		log.Fatalf("Error al firmar: %v", err)
 	} else {
