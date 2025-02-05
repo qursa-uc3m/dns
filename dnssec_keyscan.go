@@ -67,9 +67,29 @@ func (k *DNSKEY) ReadPrivateKey(q io.Reader, file string) (crypto.PrivateKey, er
 		return priv, nil
 	case ED25519:
 		return readPrivateKeyED25519(m)
+	case DILITHIUM2: //
+		return readPrivateKeyDilithium(m)
 	default:
 		return nil, ErrAlg
 	}
+}
+
+func readPrivateKeyDilithium(m map[string]string) ([]byte, error) {
+	privateKeyBase64, ok := m["privatekey"]
+	if !ok {
+		return nil, ErrPrivKey
+	}
+
+	privateKey, err := fromBase64([]byte(privateKeyBase64))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(privateKey) == 0 {
+		return nil, ErrPrivKey
+	}
+
+	return privateKey, nil //Devuelve la clave privada en formato binario
 }
 
 // Read a private key (file) string and create a public key. Return the private key.
