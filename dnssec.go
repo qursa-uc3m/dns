@@ -329,10 +329,10 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 
 func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error {
 	log.Info("entro en la función")
-	if k == nil {
-		log.Info("error de k")
-		return ErrPrivKey
-	}
+	//if k == nil {
+	//	log.Info("error de k")
+	//	return ErrPrivKey
+	//}
 	// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
 	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
 		return ErrKey
