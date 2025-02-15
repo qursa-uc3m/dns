@@ -377,18 +377,26 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 	case DILITHIUM2:
 		signer := oqs.Signature{}
 		defer signer.Clean()
+
+		log.Println("Inicializando firma Dilithium2...")
 		if err := signer.Init("Dilithium2", privkey); err != nil {
-			log.Fatal(err)
+			log.Println("Error en Init:", err)
 			return err
 		}
-		// Firmar el mensaje usando la clave k proporcionada
+
 		message := append(signdata, wire...)
+		log.Println("Firmando mensaje de longitud:", len(message))
+
 		signature, err := signer.Sign(message)
 		if err != nil {
-			log.Fatal(err)
+			log.Println("Error al firmar:", err)
 			return err
 		}
+
+		log.Println("Firma generada, longitud:", len(signature))
 		rr.Signature = toBase64(signature)
+		log.Println("Firma en base64:", rr.Signature)
+
 		return nil
 
 	default:

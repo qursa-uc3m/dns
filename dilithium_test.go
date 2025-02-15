@@ -97,14 +97,17 @@ func TestDilithium(t *testing.T) {
 		fmt.Println("Firma exitosa.")
 	}
 
-	//Verificar la firma utilizando la clave pública de OQSSigner convertida a DNSKEY
-	//hay que modificar el método Verify, pues se crean claves nuevas para firmar con dilithium
-	//dnsKey := oqsSigner.ToDNSKEY() // Convertimos la clave pública en un tipo DNSKEY
+	fmt.Printf("Clave pública generada: %x\n", pubKey)
+	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
 
-	//err = sig.Verify(dnsKey, []RR{srv})
-	//if err != nil {
-	//	t.Errorf("Error al verificar la firma: %v", err)
-	//} else {
-	//	fmt.Println("Verificación exitosa.")
-	//}
+	//Verificar la firma utilizando la clave pública de OQSSigner convertida a DNSKEY
+	dnsKey := oqsSigner.ToDNSKEY() // Convertimos la clave pública en un tipo DNSKEY
+	fmt.Printf("Clave pública convertida a DNSKEY: %x\n", dnsKey.PublicKey)
+
+	err = sig.Verify(dnsKey, []RR{srv})
+	if err != nil {
+		t.Errorf("Error al verificar la firma: %v", err)
+	} else {
+		fmt.Println("Verificación exitosa.")
+	}
 }
