@@ -14,11 +14,14 @@ import (
 	"encoding/asn1"
 	"encoding/binary"
 	"encoding/hex"
-	"log"
+
+	//"log"
 	"math/big"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/coredns/coredns/plugin/pkg/log"
 
 	"github.com/open-quantum-safe/liboqs-go/oqs"
 )
@@ -325,9 +328,9 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 }
 
 func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error {
-	log.Println("entro en la función")
+	log.Info("entro en la función")
 	if k == nil {
-		log.Println("error de k")
+		log.Info("error de k")
 		return ErrPrivKey
 	}
 	// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
@@ -380,24 +383,24 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		signer := oqs.Signature{}
 		defer signer.Clean()
 
-		log.Println("Inicializando firma Dilithium2...")
+		log.Info("Inicializando firma Dilithium2...")
 		if err := signer.Init("Dilithium2", privkey); err != nil {
-			log.Println("Error en Init:", err)
+			log.Info("Error en Init:", err)
 			return err
 		}
 
 		message := append(signdata, wire...)
-		log.Println("Firmando mensaje de longitud:", len(message))
+		log.Info("Firmando mensaje de longitud:", len(message))
 
 		signature, err := signer.Sign(message)
 		if err != nil {
-			log.Println("Error al firmar:", err)
+			log.Info("Error al firmar:", err)
 			return err
 		}
 
-		log.Println("Firma generada, longitud:", len(signature))
+		log.Info("Firma generada, longitud:", len(signature))
 		rr.Signature = toBase64(signature)
-		log.Println("Firma en base64:", rr.Signature)
+		log.Info("Firma en base64:", rr.Signature)
 
 		return nil
 
