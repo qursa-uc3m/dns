@@ -50,6 +50,7 @@ const (
 	PRIVATEOID uint8 = 254
 	//OQS
 	DILITHIUM2 uint8 = 18
+	FALCON512  uint8 = 17
 )
 
 // AlgorithmToString is a map of algorithm IDs to algorithm names.
@@ -71,6 +72,7 @@ var AlgorithmToString = map[uint8]string{
 	PRIVATEDNS:       "PRIVATEDNS",
 	PRIVATEOID:       "PRIVATEOID",
 	DILITHIUM2:       "DILITHIUM2",
+	FALCON512:        "FALCON512",
 }
 
 // AlgorithmToHash is a map of algorithm crypto hash IDs to crypto.Hash's.
@@ -329,11 +331,6 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 
 func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error {
 	log.Info("entro en la función")
-	//if k == nil {
-	//	log.Info("error de k")
-	//	return ErrPrivKey
-	//}
-	// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
 	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
 		return ErrKey
 	}
@@ -403,8 +400,37 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		log.Info("Firma en base64:", rr.Signature)
 
 		return nil
+	case FALCON512:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+
+		log.Info("Inicializando firma Falcon512...")
+		if err := signer.Init("Falcon-512", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+		log.Info("Firmando mensaje de longitud:", len(message))
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		log.Info("Firma generada, longitud:", len(signature))
+		rr.Signature = toBase64(signature)
+		log.Info("Firma en base64:", rr.Signature)
+
+		return nil
 
 	default:
+		if k == nil {
+			log.Info("error de k")
+			return ErrPrivKey
+		}
+		// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
 		h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
 		if err != nil {
 			return err

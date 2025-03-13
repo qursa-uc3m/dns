@@ -111,3 +111,84 @@ func TestDilithium(t *testing.T) {
 		fmt.Println("Verificación exitosa.")
 	}
 }
+
+func TestFalcon(t *testing.T) {
+	//crear una clave privada que sea compatible con Dilithium2.
+	sigName := "Falcon-512"
+	signer := oqs.Signature{}
+	defer signer.Clean()
+
+	if err := signer.Init(sigName, nil); err != nil {
+		log.Fatal(err)
+	}
+
+	// Generar las claves
+	pubKey, err := signer.GenerateKeyPair()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//clave secreta
+	secretKey := signer.ExportSecretKey()
+
+	// Crear un objeto OQSSigner con las claves y la firma
+	oqsSigner := &OQSSigner{
+		privKey: secretKey,
+		pubKey:  pubKey,
+		signer:  signer,
+	}
+
+	// Crear registro RR (por ejemplo, SRV record)
+	srv := &SRV{
+		Hdr: RR_Header{
+			Name:   "example.com.",
+			Rrtype: TypeSRV,
+			Class:  ClassINET,
+			Ttl:    3600,
+		},
+		Target:   "srv.example.com.",
+		Port:     8080,
+		Weight:   10,
+		Priority: 5,
+	}
+
+	//crear los registros RRSIG necesarios para la firma
+	sig := &RRSIG{
+		Hdr: RR_Header{
+			Name:   "example.com.",
+			Rrtype: TypeRRSIG,
+			Class:  ClassINET,
+			Ttl:    3600,
+		},
+		TypeCovered: srv.Hdr.Rrtype,
+		Labels:      uint8(CountLabel(srv.Hdr.Name)),
+		OrigTtl:     srv.Hdr.Ttl,
+		Expiration:  1620000000,
+		Inception:   1610000000,
+		KeyTag:      12345,
+		SignerName:  "example.com",
+		Algorithm:   FALCON512,
+	}
+
+	// Firmar el registro RRSIG utilizando el firmante
+	err = sig.SignWithPQC(oqsSigner, []RR{srv}, secretKey)
+	if err != nil {
+		log.Fatalf("Error al firmar: %v", err)
+	} else {
+		fmt.Println("Firma exitosa.")
+	}
+
+	fmt.Printf("Clave pública generada: %x\n", pubKey)
+	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
+
+	//Verificar la firma utilizando la clave pública de OQSSigner convertida a DNSKEY
+	dnsKey := oqsSigner.ToDNSKEY() // Convertimos la clave pública en un tipo DNSKEY
+	fmt.Printf("Clave pública convertida a DNSKEY: %x\n", dnsKey.PublicKey)
+
+	err = sig.Verify(dnsKey, []RR{srv})
+	if err != nil {
+		t.Errorf("Error al verificar la firma: %v", err)
+	} else {
+		fmt.Println("Verificación exitosa.")
+	}
+}
