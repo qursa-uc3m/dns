@@ -67,7 +67,7 @@ func (k *DNSKEY) ReadPrivateKey(q io.Reader, file string) (crypto.PrivateKey, er
 		return priv, nil
 	case ED25519:
 		return readPrivateKeyED25519(m)
-	case DILITHIUM2, FALCON512: //
+	case FALCON512, DILITHIUM2, MAYO1, FALCON1024, DILITHIUM3, MAYO2, DILITHIUM5, MAYO3, MAYO5: //
 		return readPrivateKeyPQC(m)
 	default:
 		return nil, ErrAlg
