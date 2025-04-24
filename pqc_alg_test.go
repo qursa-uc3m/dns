@@ -466,6 +466,76 @@ func TestMayo2(t *testing.T) {
 
 }
 
+func TestFalconPadded512(t *testing.T) {
+	//crear una clave privada que sea compatible con FALCONPADDED512.
+	sigName := "Falcon-padded-512"
+	signer := oqs.Signature{}
+	defer signer.Clean()
+
+	if err := signer.Init(sigName, nil); err != nil {
+		log.Fatal(err)
+	}
+
+	// Generar las claves
+	pubKey, err := signer.GenerateKeyPair()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//clave secreta
+	secretKey := signer.ExportSecretKey()
+
+	// Crear un objeto OQSSigner con las claves y la firma
+	oqsSigner := &OQSSigner{
+		privKey: secretKey,
+		pubKey:  pubKey,
+		signer:  signer,
+	}
+
+	// Crear registro RR (por ejemplo, SRV record)
+	srv := &SRV{
+		Hdr: RR_Header{
+			Name:   "example.com.",
+			Rrtype: TypeSRV,
+			Class:  ClassINET,
+			Ttl:    3600,
+		},
+		Target:   "srv.example.com.",
+		Port:     8080,
+		Weight:   10,
+		Priority: 5,
+	}
+
+	//crear los registros RRSIG necesarios para la firma
+	sig := &RRSIG{
+		Hdr: RR_Header{
+			Name:   "example.com.",
+			Rrtype: TypeRRSIG,
+			Class:  ClassINET,
+			Ttl:    3600,
+		},
+		TypeCovered: srv.Hdr.Rrtype,
+		Labels:      uint8(CountLabel(srv.Hdr.Name)),
+		OrigTtl:     srv.Hdr.Ttl,
+		Expiration:  1620000000,
+		Inception:   1610000000,
+		KeyTag:      12345,
+		SignerName:  "example.com",
+		Algorithm:   FALCONPADDED512,
+	}
+
+	// Firmar el registro RRSIG utilizando el firmante
+	err = sig.SignWithPQC(oqsSigner, []RR{srv}, secretKey)
+	if err != nil {
+		log.Fatalf("Error al firmar: %v", err)
+	} else {
+		fmt.Println("Firma exitosa.")
+	}
+
+	fmt.Printf("Clave pública generada: %x\n", pubKey)
+	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
+}
+
 func TestDilithium5(t *testing.T) {
 	//crear una clave privada que sea compatible con Dilithium5.
 	sigName := "Dilithium5"
@@ -608,6 +678,75 @@ func TestMayo3(t *testing.T) {
 
 }
 
+func TestFalconPadded1024(t *testing.T) {
+	//crear una clave privada que sea compatible con FALCONPADDED512.
+	sigName := "Falcon-padded-1024"
+	signer := oqs.Signature{}
+	defer signer.Clean()
+
+	if err := signer.Init(sigName, nil); err != nil {
+		log.Fatal(err)
+	}
+
+	// Generar las claves
+	pubKey, err := signer.GenerateKeyPair()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//clave secreta
+	secretKey := signer.ExportSecretKey()
+
+	// Crear un objeto OQSSigner con las claves y la firma
+	oqsSigner := &OQSSigner{
+		privKey: secretKey,
+		pubKey:  pubKey,
+		signer:  signer,
+	}
+
+	// Crear registro RR (por ejemplo, SRV record)
+	srv := &SRV{
+		Hdr: RR_Header{
+			Name:   "example.com.",
+			Rrtype: TypeSRV,
+			Class:  ClassINET,
+			Ttl:    3600,
+		},
+		Target:   "srv.example.com.",
+		Port:     8080,
+		Weight:   10,
+		Priority: 5,
+	}
+
+	//crear los registros RRSIG necesarios para la firma
+	sig := &RRSIG{
+		Hdr: RR_Header{
+			Name:   "example.com.",
+			Rrtype: TypeRRSIG,
+			Class:  ClassINET,
+			Ttl:    3600,
+		},
+		TypeCovered: srv.Hdr.Rrtype,
+		Labels:      uint8(CountLabel(srv.Hdr.Name)),
+		OrigTtl:     srv.Hdr.Ttl,
+		Expiration:  1620000000,
+		Inception:   1610000000,
+		KeyTag:      12345,
+		SignerName:  "example.com",
+		Algorithm:   FALCONPADDED1024,
+	}
+
+	// Firmar el registro RRSIG utilizando el firmante
+	err = sig.SignWithPQC(oqsSigner, []RR{srv}, secretKey)
+	if err != nil {
+		log.Fatalf("Error al firmar: %v", err)
+	} else {
+		fmt.Println("Firma exitosa.")
+	}
+
+	fmt.Printf("Clave pública generada: %x\n", pubKey)
+	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
+}
 func TestMayo5(t *testing.T) {
 	//crear una clave privada que sea compatible con MAYO5.
 	sigName := "MAYO-5"

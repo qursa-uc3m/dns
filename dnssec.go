@@ -57,9 +57,12 @@ const (
 	DILITHIUM3 uint8 = 28
 	MAYO2      uint8 = 29
 
-	DILITHIUM5 uint8 = 38
-	MAYO3      uint8 = 39
-	MAYO5      uint8 = 49
+	FALCONPADDED512 uint8 = 37
+	DILITHIUM5      uint8 = 38
+	MAYO3           uint8 = 39
+
+	FALCONPADDED1024 uint8 = 47
+	MAYO5            uint8 = 49
 )
 
 // AlgorithmToString is a map of algorithm IDs to algorithm names.
@@ -86,8 +89,10 @@ var AlgorithmToString = map[uint8]string{
 	FALCON1024:       "FALCON1024",
 	DILITHIUM3:       "DILITHIUM3",
 	MAYO2:            "MAYO2",
+	FALCONPADDED512:  "FALCONPADDED512",
 	DILITHIUM5:       "DILITHIUM5",
 	MAYO3:            "MAYO3",
+	FALCONPADDED1024: "FALCONPADDED1024",
 	MAYO5:            "MAYO5",
 }
 
@@ -516,6 +521,28 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
+
+	case FALCONPADDED512:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+
+		if err := signer.Init("Falcon-padded-512", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
 	case DILITHIUM5:
 		signer := oqs.Signature{}
 		defer signer.Clean()
@@ -539,6 +566,25 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		signer := oqs.Signature{}
 		defer signer.Clean()
 		if err := signer.Init("MAYO-3", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+	case FALCONPADDED1024:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("Falcon-padded-1024", privkey); err != nil {
 			log.Info("Error en Init:", err)
 			return err
 		}
