@@ -49,20 +49,20 @@ const (
 	PRIVATEDNS uint8 = 253 // Private (experimental keys)
 	PRIVATEOID uint8 = 254
 	//OQS
-	FALCON512  uint8 = 17
-	DILITHIUM2 uint8 = 18
-	MAYO1      uint8 = 19
+	FALCON512    uint8 = 17
+	DILITHIUM2   uint8 = 18
+	SPHINCS_SHA2 uint8 = 19
+	MAYO1        uint8 = 20
 
-	FALCON1024 uint8 = 27
-	DILITHIUM3 uint8 = 28
-	MAYO2      uint8 = 29
+	FALCON1024    uint8 = 27
+	DILITHIUM3    uint8 = 28
+	SPHINCS_SHAKE uint8 = 29
+	MAYO3         uint8 = 30
 
 	FALCONPADDED512 uint8 = 37
 	DILITHIUM5      uint8 = 38
-	MAYO3           uint8 = 39
 
 	FALCONPADDED1024 uint8 = 47
-	MAYO5            uint8 = 49
 )
 
 // AlgorithmToString is a map of algorithm IDs to algorithm names.
@@ -85,15 +85,16 @@ var AlgorithmToString = map[uint8]string{
 	PRIVATEOID:       "PRIVATEOID",
 	FALCON512:        "FALCON512",
 	DILITHIUM2:       "DILITHIUM2",
+	SPHINCS_SHA2:     "SPHINCS_SHA2",
 	MAYO1:            "MAYO1",
 	FALCON1024:       "FALCON1024",
 	DILITHIUM3:       "DILITHIUM3",
-	MAYO2:            "MAYO2",
+	SPHINCS_SHAKE:    "SPHINCS_SHAKE",
+	MAYO3:            "MAYO3",
 	FALCONPADDED512:  "FALCONPADDED512",
 	DILITHIUM5:       "DILITHIUM5",
-	MAYO3:            "MAYO3",
+
 	FALCONPADDED1024: "FALCONPADDED1024",
-	MAYO5:            "MAYO5",
 }
 
 // AlgorithmToHash is a map of algorithm crypto hash IDs to crypto.Hash's.
@@ -445,6 +446,27 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		//log.Info("Firma en base64:", rr.Signature)
 
 		return nil
+
+	case SPHINCS_SHA2:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("SPHINCS+-SHA2-128s-simple", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
 	case MAYO1:
 		signer := oqs.Signature{}
 		defer signer.Clean()
@@ -464,6 +486,7 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
+
 	case FALCON1024:
 		signer := oqs.Signature{}
 		defer signer.Clean()
@@ -502,10 +525,31 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
-	case MAYO2:
+
+	case SPHINCS_SHAKE:
 		signer := oqs.Signature{}
 		defer signer.Clean()
-		if err := signer.Init("MAYO-2", privkey); err != nil {
+		if err := signer.Init("SPHINCS+-SHAKE-128s-simple", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case MAYO3:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("MAYO-3", privkey); err != nil {
 			log.Info("Error en Init:", err)
 			return err
 		}
@@ -562,25 +606,7 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
-	case MAYO3:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("MAYO-3", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
 
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
 	case FALCONPADDED1024:
 		signer := oqs.Signature{}
 		defer signer.Clean()
@@ -600,25 +626,7 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
-	case MAYO5:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("MAYO-5", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
 
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
 	default:
 		if k == nil {
 			log.Info("error de k")
