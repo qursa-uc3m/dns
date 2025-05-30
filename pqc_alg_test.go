@@ -100,16 +100,6 @@ func TestFalcon512(t *testing.T) {
 	fmt.Printf("Clave pública generada: %x\n", pubKey)
 	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
 
-	/*Verificar la firma utilizando la clave pública de OQSSigner convertida a DNSKEY
-	dnsKey := oqsSigner.ToDNSKEY() // Convertimos la clave pública en un tipo DNSKEY
-	fmt.Printf("Clave pública convertida a DNSKEY: %x\n", dnsKey.PublicKey)
-
-	err = sig.Verify(dnsKey, []RR{srv})
-	if err != nil {
-		t.Errorf("Error al verificar la firma: %v", err)
-	} else {
-		fmt.Println("Verificación exitosa.")
-	}*/
 }
 
 func TestDilithium2(t *testing.T) {
