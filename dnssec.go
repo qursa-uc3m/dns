@@ -356,7 +356,6 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 }
 
 func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error {
-	//log.Info("entro en la función")
 	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
 		return ErrKey
 	}
@@ -406,14 +405,12 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		signer := oqs.Signature{}
 		defer signer.Clean()
 
-		//log.Info("Inicializando firma Falcon512...")
 		if err := signer.Init("Falcon-512", privkey); err != nil {
 			log.Info("Error en Init:", err)
 			return err
 		}
 
 		message := append(signdata, wire...)
-		//log.Info("Firmando mensaje de longitud:", len(message))
 
 		signature, err := signer.Sign(message)
 		if err != nil {
@@ -421,23 +418,19 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 			return err
 		}
 
-		//log.Info("Firma generada, longitud:", len(signature))
 		rr.Signature = toBase64(signature)
-		//log.Info("Firma en base64:", rr.Signature)
 
 		return nil
 	case DILITHIUM2:
 		signer := oqs.Signature{}
 		defer signer.Clean()
 
-		//log.Info("Inicializando firma Dilithium2...")
 		if err := signer.Init("Dilithium2", privkey); err != nil {
 			log.Info("Error en Init:", err)
 			return err
 		}
 
 		message := append(signdata, wire...)
-		//log.Info("Firmando mensaje de longitud:", len(message))
 
 		signature, err := signer.Sign(message)
 		if err != nil {
@@ -445,9 +438,7 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 			return err
 		}
 
-		//log.Info("Firma generada, longitud:", len(signature))
 		rr.Signature = toBase64(signature)
-		//log.Info("Firma en base64:", rr.Signature)
 
 		return nil
 
