@@ -14,10 +14,16 @@ import (
 	"encoding/asn1"
 	"encoding/binary"
 	"encoding/hex"
+
+	//"log"
 	"math/big"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/coredns/coredns/plugin/pkg/log"
+
+	"github.com/open-quantum-safe/liboqs-go/oqs"
 )
 
 // DNSSEC encryption algorithm codes.
@@ -42,6 +48,23 @@ const (
 	INDIRECT   uint8 = 252
 	PRIVATEDNS uint8 = 253 // Private (experimental keys)
 	PRIVATEOID uint8 = 254
+	//OQS
+	FALCON512    uint8 = 17
+	DILITHIUM2   uint8 = 18
+	SPHINCS_SHA2 uint8 = 19
+	MAYO1        uint8 = 20
+	SNOVA        uint8 = 21
+
+	FALCON1024    uint8 = 27
+	DILITHIUM3    uint8 = 28
+	SPHINCS_SHAKE uint8 = 29
+	MAYO3         uint8 = 30
+	SNOVASHAKE    uint8 = 31
+
+	FALCONPADDED512 uint8 = 37
+	DILITHIUM5      uint8 = 38
+
+	FALCONPADDED1024 uint8 = 47
 )
 
 // AlgorithmToString is a map of algorithm IDs to algorithm names.
@@ -62,6 +85,20 @@ var AlgorithmToString = map[uint8]string{
 	INDIRECT:         "INDIRECT",
 	PRIVATEDNS:       "PRIVATEDNS",
 	PRIVATEOID:       "PRIVATEOID",
+	FALCON512:        "FALCON512",
+	DILITHIUM2:       "DILITHIUM2",
+	SPHINCS_SHA2:     "SPHINCS_SHA2",
+	MAYO1:            "MAYO1",
+	SNOVA:            "SNOVA",
+	FALCON1024:       "FALCON1024",
+	DILITHIUM3:       "DILITHIUM3",
+	SPHINCS_SHAKE:    "SPHINCS_SHAKE",
+	MAYO3:            "MAYO3",
+	SNOVASHAKE:       "SNOVASHAKE",
+	FALCONPADDED512:  "FALCONPADDED512",
+	DILITHIUM5:       "DILITHIUM5",
+
+	FALCONPADDED1024: "FALCONPADDED1024",
 }
 
 // AlgorithmToHash is a map of algorithm crypto hash IDs to crypto.Hash's.
@@ -305,6 +342,336 @@ func (rr *RRSIG) Sign(k crypto.Signer, rrset []RR) error {
 		// See RFC 6944.
 		return ErrAlg
 	default:
+		h.Write(signdata)
+		h.Write(wire)
+
+		signature, err := sign(k, h.Sum(nil), cryptohash, rr.Algorithm)
+		if err != nil {
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+		return nil
+	}
+}
+
+func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error {
+	if rr.KeyTag == 0 || len(rr.SignerName) == 0 || rr.Algorithm == 0 {
+		return ErrKey
+	}
+
+	h0 := rrset[0].Header()
+	rr.Hdr.Rrtype = TypeRRSIG
+	rr.Hdr.Name = h0.Name
+	rr.Hdr.Class = h0.Class
+	if rr.OrigTtl == 0 { // If set don't override
+		rr.OrigTtl = h0.Ttl
+	}
+	rr.TypeCovered = h0.Rrtype
+	rr.Labels = uint8(CountLabel(h0.Name))
+
+	if strings.HasPrefix(h0.Name, "*") {
+		rr.Labels-- // wildcard, remove from label count
+	}
+
+	sigwire := new(rrsigWireFmt)
+	sigwire.TypeCovered = rr.TypeCovered
+	sigwire.Algorithm = rr.Algorithm
+	sigwire.Labels = rr.Labels
+	sigwire.OrigTtl = rr.OrigTtl
+	sigwire.Expiration = rr.Expiration
+	sigwire.Inception = rr.Inception
+	sigwire.KeyTag = rr.KeyTag
+	// For signing, lowercase this name
+	sigwire.SignerName = CanonicalName(rr.SignerName)
+
+	// Create the desired binary blob
+	signdata := make([]byte, DefaultMsgSize)
+	n, err := packSigWire(sigwire, signdata)
+	if err != nil {
+		return err
+	}
+	signdata = signdata[:n]
+	wire, err := rawSignatureData(rrset, rr)
+	if err != nil {
+		return err
+	}
+
+	switch rr.Algorithm {
+	case RSAMD5, DSA, DSANSEC3SHA1:
+		// See RFC 6944.
+		return ErrAlg
+	case FALCON512:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+
+		if err := signer.Init("Falcon-512", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+	case DILITHIUM2:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+
+		if err := signer.Init("Dilithium2", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case SPHINCS_SHA2:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("SPHINCS+-SHA2-128s-simple", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case MAYO1:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("MAYO-1", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case SNOVA:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("SNOVA_24_5_4", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case FALCON1024:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("Falcon-1024", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+	case DILITHIUM3:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("Dilithium3", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case SPHINCS_SHAKE:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("SPHINCS+-SHAKE-128s-simple", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case MAYO3:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("MAYO-3", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case SNOVASHAKE:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("SNOVA_24_5_4_SHAKE", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case FALCONPADDED512:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+
+		if err := signer.Init("Falcon-padded-512", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case DILITHIUM5:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("Dilithium5", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	case FALCONPADDED1024:
+		signer := oqs.Signature{}
+		defer signer.Clean()
+		if err := signer.Init("Falcon-padded-1024", privkey); err != nil {
+			log.Info("Error en Init:", err)
+			return err
+		}
+
+		message := append(signdata, wire...)
+
+		signature, err := signer.Sign(message)
+		if err != nil {
+			log.Info("Error al firmar:", err)
+			return err
+		}
+
+		rr.Signature = toBase64(signature)
+
+		return nil
+
+	default:
+		if k == nil {
+			log.Info("error de k")
+			return ErrPrivKey
+		}
+		// s.Inception and s.Expiration may be 0 (rollover etc.), the rest must be set
+		h, cryptohash, err := hashFromAlgorithm(rr.Algorithm)
+		if err != nil {
+			return err
+		}
 		h.Write(signdata)
 		h.Write(wire)
 
