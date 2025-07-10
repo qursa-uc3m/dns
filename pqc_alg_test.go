@@ -102,9 +102,9 @@ func TestFalcon512(t *testing.T) {
 
 }
 
-func TestDilithium2(t *testing.T) {
-	//crear una clave privada que sea compatible con Dilithium2.
-	sigName := "Dilithium2"
+func TestML-DSA-44(t *testing.T) {
+	//crear una clave privada que sea compatible con ML-DSA-44.
+	sigName := "ML-DSA-44"
 	signer := oqs.Signature{}
 	defer signer.Clean()
 
@@ -157,7 +157,7 @@ func TestDilithium2(t *testing.T) {
 		Inception:   1610000000,
 		KeyTag:      12345,
 		SignerName:  "example.com",
-		Algorithm:   DILITHIUM2,
+		Algorithm:   ML-DSA-44,
 	}
 
 	// Firmar el registro RRSIG utilizando el firmante
@@ -456,9 +456,9 @@ func TestFalcon1024(t *testing.T) {
 	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
 }
 
-func TestDilithium3(t *testing.T) {
-	//crear una clave privada que sea compatible con Dilithium3.
-	sigName := "Dilithium3"
+func TestML-DSA-65(t *testing.T) {
+	//crear una clave privada que sea compatible con ML-DSA-65.
+	sigName := "ML-DSA-65"
 	signer := oqs.Signature{}
 	defer signer.Clean()
 
@@ -511,7 +511,7 @@ func TestDilithium3(t *testing.T) {
 		Inception:   1610000000,
 		KeyTag:      12345,
 		SignerName:  "example.com",
-		Algorithm:   DILITHIUM3,
+		Algorithm:   ML-DSA-65,
 	}
 
 	// Firmar el registro RRSIG utilizando el firmante
@@ -810,9 +810,9 @@ func TestFalconPadded512(t *testing.T) {
 	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
 }
 
-func TestDilithium5(t *testing.T) {
-	//crear una clave privada que sea compatible con Dilithium5.
-	sigName := "Dilithium5"
+func TestML-DSA-87(t *testing.T) {
+	//crear una clave privada que sea compatible con ML-DSA-87.
+	sigName := "ML-DSA-87"
 	signer := oqs.Signature{}
 	defer signer.Clean()
 
@@ -865,7 +865,7 @@ func TestDilithium5(t *testing.T) {
 		Inception:   1610000000,
 		KeyTag:      12345,
 		SignerName:  "example.com",
-		Algorithm:   DILITHIUM5,
+		Algorithm:   ML-DSA-87,
 	}
 
 	// Firmar el registro RRSIG utilizando el firmante

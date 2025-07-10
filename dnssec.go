@@ -50,19 +50,19 @@ const (
 	PRIVATEOID uint8 = 254
 	//OQS
 	FALCON512    uint8 = 17
-	DILITHIUM2   uint8 = 18
+	ML-DSA-44   uint8 = 18
 	SPHINCS_SHA2 uint8 = 19
 	MAYO1        uint8 = 20
 	SNOVA        uint8 = 21
 
 	FALCON1024    uint8 = 27
-	DILITHIUM3    uint8 = 28
+	ML-DSA-65    uint8 = 28
 	SPHINCS_SHAKE uint8 = 29
 	MAYO3         uint8 = 30
 	SNOVASHAKE    uint8 = 31
 
 	FALCONPADDED512 uint8 = 37
-	DILITHIUM5      uint8 = 38
+	ML-DSA-87      uint8 = 38
 
 	FALCONPADDED1024 uint8 = 47
 )
@@ -86,17 +86,17 @@ var AlgorithmToString = map[uint8]string{
 	PRIVATEDNS:       "PRIVATEDNS",
 	PRIVATEOID:       "PRIVATEOID",
 	FALCON512:        "FALCON512",
-	DILITHIUM2:       "DILITHIUM2",
+	ML-DSA-44:       "ML-DSA-44",
 	SPHINCS_SHA2:     "SPHINCS_SHA2",
 	MAYO1:            "MAYO1",
 	SNOVA:            "SNOVA",
 	FALCON1024:       "FALCON1024",
-	DILITHIUM3:       "DILITHIUM3",
+	ML-DSA-65:       "ML-DSA-65",
 	SPHINCS_SHAKE:    "SPHINCS_SHAKE",
 	MAYO3:            "MAYO3",
 	SNOVASHAKE:       "SNOVASHAKE",
 	FALCONPADDED512:  "FALCONPADDED512",
-	DILITHIUM5:       "DILITHIUM5",
+	ML-DSA-87:       "ML-DSA-87",
 
 	FALCONPADDED1024: "FALCONPADDED1024",
 }
@@ -421,11 +421,11 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
-	case DILITHIUM2:
+	case ML-DSA-44:
 		signer := oqs.Signature{}
 		defer signer.Clean()
 
-		if err := signer.Init("Dilithium2", privkey); err != nil {
+		if err := signer.Init("ML-DSA-44", privkey); err != nil {
 			log.Info("Error en Init:", err)
 			return err
 		}
@@ -521,10 +521,10 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
-	case DILITHIUM3:
+	case ML-DSA-65:
 		signer := oqs.Signature{}
 		defer signer.Clean()
-		if err := signer.Init("Dilithium3", privkey); err != nil {
+		if err := signer.Init("ML-DSA-65", privkey); err != nil {
 			log.Info("Error en Init:", err)
 			return err
 		}
@@ -622,10 +622,10 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 
 		return nil
 
-	case DILITHIUM5:
+	case ML-DSA-87:
 		signer := oqs.Signature{}
 		defer signer.Clean()
-		if err := signer.Init("Dilithium5", privkey); err != nil {
+		if err := signer.Init("ML-DSA-87", privkey); err != nil {
 			log.Info("Error en Init:", err)
 			return err
 		}
