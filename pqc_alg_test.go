@@ -102,7 +102,7 @@ func TestFalcon512(t *testing.T) {
 
 }
 
-func TestML-DSA-44(t *testing.T) {
+func TestML_DSA_44(t *testing.T) {
 	//crear una clave privada que sea compatible con ML-DSA-44.
 	sigName := "ML-DSA-44"
 	signer := oqs.Signature{}
@@ -157,7 +157,7 @@ func TestML-DSA-44(t *testing.T) {
 		Inception:   1610000000,
 		KeyTag:      12345,
 		SignerName:  "example.com",
-		Algorithm:   ML-DSA-44,
+		Algorithm:   ML_DSA_44,
 	}
 
 	// Firmar el registro RRSIG utilizando el firmante
@@ -456,7 +456,7 @@ func TestFalcon1024(t *testing.T) {
 	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
 }
 
-func TestML-DSA-65(t *testing.T) {
+func TestML_DSA_65(t *testing.T) {
 	//crear una clave privada que sea compatible con ML-DSA-65.
 	sigName := "ML-DSA-65"
 	signer := oqs.Signature{}
@@ -511,7 +511,7 @@ func TestML-DSA-65(t *testing.T) {
 		Inception:   1610000000,
 		KeyTag:      12345,
 		SignerName:  "example.com",
-		Algorithm:   ML-DSA-65,
+		Algorithm:   ML_DSA_65,
 	}
 
 	// Firmar el registro RRSIG utilizando el firmante
@@ -810,7 +810,7 @@ func TestFalconPadded512(t *testing.T) {
 	fmt.Printf("Clave pública usada en DNSKEY: %x\n", oqsSigner.Public())
 }
 
-func TestML-DSA-87(t *testing.T) {
+func TestML_DSA_87(t *testing.T) {
 	//crear una clave privada que sea compatible con ML-DSA-87.
 	sigName := "ML-DSA-87"
 	signer := oqs.Signature{}
@@ -865,7 +865,7 @@ func TestML-DSA-87(t *testing.T) {
 		Inception:   1610000000,
 		KeyTag:      12345,
 		SignerName:  "example.com",
-		Algorithm:   ML-DSA-87,
+		Algorithm:   ML_DSA_87,
 	}
 
 	// Firmar el registro RRSIG utilizando el firmante
