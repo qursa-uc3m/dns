@@ -50,19 +50,19 @@ const (
 	PRIVATEOID uint8 = 254
 	//OQS
 	FALCON512    uint8 = 17
-	ML-DSA-44   uint8 = 18
+	ML_DSA_44   uint8 = 18
 	SPHINCS_SHA2 uint8 = 19
 	MAYO1        uint8 = 20
 	SNOVA        uint8 = 21
 
 	FALCON1024    uint8 = 27
-	ML-DSA-65    uint8 = 28
+	ML_DSA_65    uint8 = 28
 	SPHINCS_SHAKE uint8 = 29
 	MAYO3         uint8 = 30
 	SNOVASHAKE    uint8 = 31
 
 	FALCONPADDED512 uint8 = 37
-	ML-DSA-87      uint8 = 38
+	ML_DSA_87      uint8 = 38
 
 	FALCONPADDED1024 uint8 = 47
 )
@@ -86,17 +86,17 @@ var AlgorithmToString = map[uint8]string{
 	PRIVATEDNS:       "PRIVATEDNS",
 	PRIVATEOID:       "PRIVATEOID",
 	FALCON512:        "FALCON512",
-	ML-DSA-44:       "ML-DSA-44",
+	ML_DSA_44:        "ML-DSA-44",
 	SPHINCS_SHA2:     "SPHINCS_SHA2",
 	MAYO1:            "MAYO1",
 	SNOVA:            "SNOVA",
 	FALCON1024:       "FALCON1024",
-	ML-DSA-65:       "ML-DSA-65",
+	ML_DSA_65:        "ML-DSA-65",
 	SPHINCS_SHAKE:    "SPHINCS_SHAKE",
 	MAYO3:            "MAYO3",
 	SNOVASHAKE:       "SNOVASHAKE",
 	FALCONPADDED512:  "FALCONPADDED512",
-	ML-DSA-87:       "ML-DSA-87",
+	ML_DSA_87:        "ML-DSA-87",
 
 	FALCONPADDED1024: "FALCONPADDED1024",
 }
@@ -421,7 +421,7 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
-	case ML-DSA-44:
+	case ML_DSA_44:
 		signer := oqs.Signature{}
 		defer signer.Clean()
 
@@ -521,7 +521,7 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		rr.Signature = toBase64(signature)
 
 		return nil
-	case ML-DSA-65:
+	case ML_DSA_65:
 		signer := oqs.Signature{}
 		defer signer.Clean()
 		if err := signer.Init("ML-DSA-65", privkey); err != nil {
@@ -622,7 +622,7 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 
 		return nil
 
-	case ML-DSA-87:
+	case ML_DSA_87:
 		signer := oqs.Signature{}
 		defer signer.Clean()
 		if err := signer.Init("ML-DSA-87", privkey); err != nil {
