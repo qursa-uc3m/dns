@@ -26,6 +26,23 @@ import (
 	"github.com/open-quantum-safe/liboqs-go/oqs"
 )
 
+// pqcAlgName maps PQC DNSSEC algorithm IDs to their liboqs names.
+var pqcAlgName = map[uint8]string{
+	FALCON512:        "Falcon-512",
+	ML_DSA_44:        "ML-DSA-44",
+	SPHINCS_SHA2:     "SPHINCS+-SHA2-128s-simple",
+	MAYO1:            "MAYO-1",
+	SNOVA:            "SNOVA_24_5_4",
+	FALCON1024:       "Falcon-1024",
+	ML_DSA_65:        "ML-DSA-65",
+	SPHINCS_SHAKE:    "SPHINCS+-SHAKE-128s-simple",
+	MAYO3:            "MAYO-3",
+	SNOVASHAKE:       "SNOVA_24_5_4_SHAKE",
+	FALCONPADDED512:  "Falcon-padded-512",
+	ML_DSA_87:        "ML-DSA-87",
+	FALCONPADDED1024: "Falcon-padded-1024",
+}
+
 // DNSSEC encryption algorithm codes.
 const (
 	_ uint8 = iota
@@ -397,269 +414,34 @@ func (rr *RRSIG) SignWithPQC(k crypto.Signer, rrset []RR, privkey []byte) error 
 		return err
 	}
 
-	switch rr.Algorithm {
-	case RSAMD5, DSA, DSANSEC3SHA1:
+	switch {
+	case rr.Algorithm == RSAMD5 || rr.Algorithm == DSA || rr.Algorithm == DSANSEC3SHA1:
 		// See RFC 6944.
 		return ErrAlg
-	case FALCON512:
+
+	case pqcAlgName[rr.Algorithm] != "":
+		algName := pqcAlgName[rr.Algorithm]
+
+		// Defensive copy: oqs.Signature.Init stores a reference to the
+		// privkey slice, and defer Clean() zeroes it via MemCleanse.
+		// Without this copy the caller's key material is permanently
+		// destroyed after the first signing call.
+		pk := make([]byte, len(privkey))
+		copy(pk, privkey)
+
 		signer := oqs.Signature{}
 		defer signer.Clean()
 
-		if err := signer.Init("Falcon-512", privkey); err != nil {
-			log.Info("Error en Init:", err)
+		if err := signer.Init(algName, pk); err != nil {
 			return err
 		}
 
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
+		signature, err := signer.Sign(append(signdata, wire...))
 		if err != nil {
-			log.Info("Error al firmar:", err)
 			return err
 		}
 
 		rr.Signature = toBase64(signature)
-
-		return nil
-	case ML_DSA_44:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-
-		if err := signer.Init("ML-DSA-44", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case SPHINCS_SHA2:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("SPHINCS+-SHA2-128s-simple", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case MAYO1:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("MAYO-1", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case SNOVA:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("SNOVA_24_5_4", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case FALCON1024:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("Falcon-1024", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-	case ML_DSA_65:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("ML-DSA-65", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case SPHINCS_SHAKE:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("SPHINCS+-SHAKE-128s-simple", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case MAYO3:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("MAYO-3", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case SNOVASHAKE:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("SNOVA_24_5_4_SHAKE", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case FALCONPADDED512:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-
-		if err := signer.Init("Falcon-padded-512", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case ML_DSA_87:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("ML-DSA-87", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
-		return nil
-
-	case FALCONPADDED1024:
-		signer := oqs.Signature{}
-		defer signer.Clean()
-		if err := signer.Init("Falcon-padded-1024", privkey); err != nil {
-			log.Info("Error en Init:", err)
-			return err
-		}
-
-		message := append(signdata, wire...)
-
-		signature, err := signer.Sign(message)
-		if err != nil {
-			log.Info("Error al firmar:", err)
-			return err
-		}
-
-		rr.Signature = toBase64(signature)
-
 		return nil
 
 	default:
