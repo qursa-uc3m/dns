@@ -12,6 +12,7 @@ import (
 	_ "crypto/sha256" // need its init function
 	_ "crypto/sha512" // need its init function
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 
@@ -67,19 +68,19 @@ const (
 	PRIVATEOID uint8 = 254
 	//OQS
 	FALCON512    uint8 = 17
-	ML_DSA_44   uint8 = 18
+	ML_DSA_44    uint8 = 18
 	SPHINCS_SHA2 uint8 = 19
 	MAYO1        uint8 = 20
 	SNOVA        uint8 = 21
 
 	FALCON1024    uint8 = 27
-	ML_DSA_65    uint8 = 28
+	ML_DSA_65     uint8 = 28
 	SPHINCS_SHAKE uint8 = 29
 	MAYO3         uint8 = 30
 	SNOVASHAKE    uint8 = 31
 
 	FALCONPADDED512 uint8 = 37
-	ML_DSA_87      uint8 = 38
+	ML_DSA_87       uint8 = 38
 
 	FALCONPADDED1024 uint8 = 47
 )
@@ -563,6 +564,25 @@ func (rr *RRSIG) Verify(k *DNSKEY, rrset []RR) error {
 	}
 
 	sigbuf := rr.sigBuf() // Get the binary signature data
+	if algName, ok := pqcAlgName[rr.Algorithm]; ok {
+		publicKey, err := base64.StdEncoding.DecodeString(k.PublicKey)
+		if err != nil {
+			return ErrKey
+		}
+		var verifier oqs.Signature
+		if err := verifier.Init(algName, nil); err != nil {
+			return err
+		}
+		defer verifier.Clean()
+		valid, err := verifier.Verify(append(signeddata, wire...), sigbuf, publicKey)
+		if err != nil {
+			return err
+		}
+		if !valid {
+			return ErrSig
+		}
+		return nil
+	}
 	// TODO(miek)
 	// remove the domain name and assume its ours?
 	// if rr.Algorithm == PRIVATEDNS { // PRIVATEOID
